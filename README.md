@@ -13,7 +13,7 @@ cat urls.txt | gojs -output jsfiles
 
 
 ````bash
-Usage: gojs
+Usage: cat urls.txt | gojs -output jsfiles
 Download files from a list of URLs concurrently.
 
 Options:
