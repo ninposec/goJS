@@ -33,7 +33,7 @@ Options:
 ### Installation
 
 ```bash
-go install -v https://github.com/ninposec/gojs@latest
+go install -v https://github.com/ninposec/goJS@latest
 ````
 
 or
