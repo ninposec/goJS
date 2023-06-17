@@ -16,20 +16,34 @@ var (
 	urls        = flag.String("urls", "", "File List of URLs separated by new lines")
 	output      = flag.String("output", ".", "Output directory")
 	concurrency = flag.Int("concurrency", 10, "Number of concurrent downloads")
-	help        = flag.Bool("help", false, "Display help")
 )
 
-func printUsage() {
-	fmt.Println("goJS")
-	fmt.Println("v.0.1")
-	fmt.Println("Usage: cat urls.txt | gojs -output jsfiles")
-	fmt.Println("Download JS files from a list of JS URLs concurrently. Save files to folder per target")
-	fmt.Println()
-	fmt.Println("Options:")
-	flag.PrintDefaults()
+func init() {
+	flag.Usage = func() {
+		fmt.Println(`
+		
+██████╗  ██████╗      ██╗███████╗
+██╔════╝ ██╔═══██╗     ██║██╔════╝
+██║  ███╗██║   ██║     ██║███████╗
+██║   ██║██║   ██║██   ██║╚════██║
+╚██████╔╝╚██████╔╝╚█████╔╝███████║
+ ╚═════╝  ╚═════╝  ╚════╝ ╚══════╝
+																																																					 
+				
+			`)
+
+		fmt.Println("goJS v.0.1")
+		fmt.Println("Author: ninposec")
+		fmt.Println("")
+		fmt.Println("Usage: cat urls.txt | gojs -output jsfiles")
+		fmt.Println("Download JS files from a list of JS URLs concurrently. Save files to folder per target")
+		fmt.Println()
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+	}
 }
 
-func downloadFile(filepath string, url string) error {
+func downloadFile(filepath, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to start download: %w", err)
@@ -54,45 +68,44 @@ func downloadFile(filepath string, url string) error {
 	return nil
 }
 
-func worker(id int, jobs <-chan string, wg *sync.WaitGroup, outputDir string) {
+func worker(id int, jobs <-chan string, results chan<- error, wg *sync.WaitGroup, outputDir string) {
 	for j := range jobs {
 		u, err := url.Parse(j)
 		if err != nil {
-			fmt.Printf("Worker%d: failed to parse URL %s: %v\n", id, j, err)
-			wg.Done()
+			results <- fmt.Errorf("Worker%d: failed to parse URL %s: %v", id, j, err)
 			continue
 		}
 
 		domainDir := filepath.Join(outputDir, u.Host)
 		err = os.MkdirAll(domainDir, os.ModePerm)
 		if err != nil {
-			fmt.Printf("Worker%d: failed to create directory for URL %s: %v\n", id, j, err)
-			wg.Done()
+			results <- fmt.Errorf("Worker%d: failed to create directory for URL %s: %v", id, j, err)
 			continue
 		}
 
 		targetPath := filepath.Join(domainDir, filepath.Base(u.Path))
+		targetPath = filepath.Clean(targetPath) // Sanitize the target path
 		err = downloadFile(targetPath, j)
 		if err != nil {
-			fmt.Printf("Worker%d: failed to download %s: %v\n", id, j, err)
+			results <- fmt.Errorf("Worker%d: failed to download %s: %v", id, j, err)
 		} else {
-			fmt.Printf("Worker%d: successfully downloaded %s\n", id, j)
+			results <- nil
 		}
-		wg.Done()
 	}
+	wg.Done()
 }
 
 func main() {
 	flag.Parse()
 
-	if *help {
-		printUsage()
+	if flag.NFlag() == 0 {
+		flag.Usage()
 		os.Exit(0)
 	}
 
 	var urlsList []string
 	if *urls != "" {
-		urlsList = strings.Split(*urls, ",")
+		urlsList = strings.Split(*urls, "\n")
 	} else {
 		for {
 			var u string
@@ -113,11 +126,12 @@ func main() {
 		*output = "."
 	}
 
+	errCh := make(chan error, *concurrency) // Error channel to collect worker errors
 	var wg sync.WaitGroup
-	jobs := make(chan string, len(urlsList))
+	jobs := make(chan string, *concurrency) // Use a buffered channel to avoid blocking the sender goroutine
 
 	for i := 1; i <= *concurrency; i++ {
-		go worker(i, jobs, &wg, *output)
+		go worker(i, jobs, errCh, &wg, *output)
 	}
 
 	for _, url := range urlsList {
@@ -127,4 +141,11 @@ func main() {
 	close(jobs)
 
 	wg.Wait()
+	close(errCh) // Close the error channel to signal the completion of error collection
+
+	for err := range errCh {
+		if err != nil {
+			fmt.Println(err) // Handle or log the errors as desired
+		}
+	}
 }
