@@ -2,6 +2,9 @@
  
 goJS is a simple command line tool written in Go, designed to download files from a list of URLs concurrently. For each URL, the tool creates a directory structure named after the domain part of the URL and downloads the corresponding file.
 
+The main purpose of this tool is to download Javascript files at scale.
+
+Can be combined with e.g. GetJS to fetch a list of Javascript URLs, then download found JS to a structured folder.
 
 ### Usage
 
@@ -59,4 +62,4 @@ go build .
 
 ### ToDo
 
-* Add SourceMapping functionality
+* Add SourceMappingURL functionality (Download corresponding js map files if exist)
