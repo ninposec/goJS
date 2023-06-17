@@ -6,12 +6,14 @@ The main purpose of this tool is to download Javascript files at scale.
 
 Can be combined with e.g. GetJS to fetch a list of Javascript URLs, then download found JS to a structured folder.
 
+
 ### Usage
 
 Example:
 
 ```bash
 cat urls.txt | gojs -output jsfiles
+cat alive.txt | getJS --complete | gojs -output jsfiles
 ````
 
 
