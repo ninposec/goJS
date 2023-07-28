@@ -51,7 +51,7 @@ Options:
 ### Installation
 
 ```bash
-go install -v https://github.com/ninposec/goJS@latest
+go install -v github.com/ninposec/goJS@latest
 ````
 
 or
